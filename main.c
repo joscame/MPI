@@ -1,17 +1,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 //#include "mpi.h"
 
 int get_random_number(upper_limit){
-    srand(time(NULL));
     return rand() % upper_limit + 1;
+}
+
+void print_matrix(int** matrix, int rows, int columns){
+
+    for (int i=0; i<rows; i++){
+        printf("\n");
+        for (int j=0; j<columns; j++)
+            printf("%d ", matrix[i][j]);
+    }
+
+    printf("\n");
 }
 
 main(int argc, char* argv[]) {
     int         my_rank;       /* rank del proceso     */
     int         p;             /* número de procesos   */
     int         m;             /* largo y ancho de la matriz A   */
+    int         rows_p_process;
     int         a;             /* num aleatorio   */
     int         b;             /* num aleatorio   */
     int         c;             /* num aleatorio   */
@@ -19,10 +31,20 @@ main(int argc, char* argv[]) {
     int         source;        /* rank de quien envía  */
     int         dest;          /* rank del receptor     */
     int         tag = 0;       /* etiqueta para mensajes */
+    int         **matrix_a;
+    int         **matrix_b;
+    int         **assigned_rows;
     char        message[100];  /* almacenamiemto del mensaje  */
     char        user_confirmation;   /* confirmation answear */
     //MPI_Status  status;        /* return status para receptor  */
 
+    srand(time(0));
+    
+    //calcula la cantidad de filas por proceso
+    rows_p_process = m / p;
+    
+    
+    //Pide los valores al usuario
     do {
         printf("Please type the number of processes that you want to use to run this program. The number must be even.\n");
         scanf("%d", &p);
@@ -36,6 +58,7 @@ main(int argc, char* argv[]) {
         scanf("%c", &user_confirmation);
     } while (user_confirmation == 'Y' || user_confirmation == 'y');
 
+
     /* Inicializa MPI */
     //MPI_Init(&argc, &argv);
 
@@ -45,9 +68,38 @@ main(int argc, char* argv[]) {
     /* Cuántos somos */
     //MPI_Comm_size(MPI_COMM_WORLD, &p);
 
+    //Crea la matriz A
+    matrix_a = (int **)malloc(m * sizeof(int *));
+    for (int i=0; i<m; i++)
+         matrix_a[i] = (int *)malloc(m * sizeof(int));
+
+    //llena la matriz A
+    for (int i=0; i<m; i++)
+        for (int j=0; j<m; j++)
+            matrix_a[i][j] = get_random_number(5);
+
+    //imprime la matriz A
+    print_matrix(matrix_a, m, m);
+
+    //Crea la matriz B
+    matrix_b = (int **)malloc(9 * sizeof(int *));
+    for (int i=0; i<9; i++)
+         matrix_b[i] = (int *)malloc(m * sizeof(int));
+
     //Genera nums aleatorios
-    a = get_random_number(5);
+    a = get_random_number(m-1);
     printf("\nEl valor de a es: %d\n", a);
+
+    b = get_random_number(m-1);
+    printf("\nEl valor de b es: %d\n", b);
+
+    c = get_random_number(m-1);
+    printf("\nEl valor de c es: %d\n", c);
+
+    d = get_random_number(m-1);
+    printf("\nEl valor de d es: %d\n", d);
+    
+    MPI_Gather( sendarray, 100, MPI_INT, rbuf, 100, MPI_INT, root, comm); 
 
 
     /* Termina de usarse MPI */
