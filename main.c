@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-//#include "mpi.h"
+#include "mpi.h"
 
 int get_random_number(upper_limit){
     return rand() % upper_limit + 1;
@@ -28,22 +28,20 @@ main(int argc, char* argv[]) {
     int         b;             /* num aleatorio   */
     int         c;             /* num aleatorio   */
     int         d;             /* num aleatorio   */
-    int         source;        /* rank de quien envía  */
-    int         dest;          /* rank del receptor     */
     int         tag = 0;       /* etiqueta para mensajes */
     int         **matrix_a;
     int         **matrix_b;
     int         **assigned_rows;
-    char        message[100];  /* almacenamiemto del mensaje  */
     char        user_confirmation;   /* confirmation answear */
-    //MPI_Status  status;        /* return status para receptor  */
+    MPI_Status  status;        /* return status para receptor  */
 
+    //Se setea la semilla para generar nums aleatorios
     srand(time(0));
-    
+
     //calcula la cantidad de filas por proceso
     rows_p_process = m / p;
-    
-    
+
+
     //Pide los valores al usuario
     do {
         printf("Please type the number of processes that you want to use to run this program. The number must be even.\n");
@@ -57,16 +55,6 @@ main(int argc, char* argv[]) {
         fflush(stdin);
         scanf("%c", &user_confirmation);
     } while (user_confirmation == 'Y' || user_confirmation == 'y');
-
-
-    /* Inicializa MPI */
-    //MPI_Init(&argc, &argv);
-
-    /* Quién soy  */
-    //MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-
-    /* Cuántos somos */
-    //MPI_Comm_size(MPI_COMM_WORLD, &p);
 
     //Crea la matriz A
     matrix_a = (int **)malloc(m * sizeof(int *));
@@ -98,10 +86,45 @@ main(int argc, char* argv[]) {
 
     d = get_random_number(m-1);
     printf("\nEl valor de d es: %d\n", d);
-    
-    MPI_Gather( sendarray, 100, MPI_INT, rbuf, 100, MPI_INT, root, comm); 
+
+    /* Inicializa MPI */
+    MPI_Init(&argc, &argv);
+
+    /* Quién soy  */
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+    /* Cuántos somos */
+    MPI_Comm_size(MPI_COMM_WORLD, &p);
+
+    //Se inicializa la matriz que va a tener cada proceso
+    if (rows_p_process > 1)
+        assigned_rows = (int **)malloc(rows_p_process * sizeof(int *));
+    for (int i=0; i<rows_p_process; i++)
+         assigned_rows[i] = (int *)malloc(m * sizeof(int));
+
+    //Se envian los vectores a los procesos
+    int sent_rows = 0;
+    int process = 0;
+
+    if (my_rank == 0){ //el proceso padre envía las filas a los otros procesos
+        for (int i=0; i<m; i++){
+            if (sent_rows == rows_p_process){
+                sent_rows = 0;
+                process++;
+            }
+            MPI_Send(matrix_a[i], m, MPI_INT, process, tag, MPI_COMM_WORLD);
+        }
+    }else{ //Procesos que no son el 0 reciven las filas
+        for (int i=0; i<rows_p_process; i++){
+            MPI_Recv(assigned_rows[i], m, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
+        }
+    }
+        
+    //Se rellena la fila 3 de la matriz B
+    for (int i=0; i<rows_p_process; i++)
+        MPI_Gather( assigned_rows[i][0], 1, MPI_INT, matrix_b[3], 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 
     /* Termina de usarse MPI */
-    //MPI_Finalize();
+    MPI_Finalize();
 }/* main */
